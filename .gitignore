@@ -1,0 +1,5 @@
+volumes
+tmp
+.idea
+./gitxyz
+.envs

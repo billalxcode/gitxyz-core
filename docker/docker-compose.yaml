@@ -1,0 +1,11 @@
+services:
+  db:
+    image: postgres:18-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=gitxyz
+      - POSTGRES_PASSWORD=gitxyz-kece-banget
+      - POSTGRES_DB=gitxyz
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql
