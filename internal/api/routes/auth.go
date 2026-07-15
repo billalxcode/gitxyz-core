@@ -9,12 +9,17 @@ func (r *RoutesImpl) RegisterAuth() {
 	controller := controllers.NewAuthController(r.db)
 
 	routes := r.engine.Group("/api/auth")
-	routes.POST("/register", controller.Register)
-	routes.POST("/login", controller.Login)
-	routes.POST("/logout", middlewares.AuthRequired(), controller.Register)
-	routes.GET("/me", middlewares.AuthRequired(), controller.Profile)
-	routes.POST("/send-verification-email", controller.Register)
-	routes.POST("/verify-email", controller.Register)
-	routes.POST("/send-reset-password", controller.Register)
-	routes.POST("/reset-password", controller.Register)
+	publicRoutes := routes.Group("/")
+	protectedRoutes := routes.Group("/")
+	protectedRoutes.Use(middlewares.AuthRequired())
+
+	publicRoutes.POST("/register", controller.Register)
+	publicRoutes.POST("/login", controller.Login)
+	publicRoutes.POST("/send-verification-email", controller.SendVerificationEmail)
+	publicRoutes.POST("/verify-email", controller.VerifyEmail)
+	publicRoutes.POST("/send-reset-password", controller.SendPasswordReset)
+	publicRoutes.POST("/reset-password", controller.ResetPassword)
+
+	protectedRoutes.POST("/logout", controller.Logout)
+	protectedRoutes.GET("/me", controller.Profile)
 }
