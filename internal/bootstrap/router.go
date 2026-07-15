@@ -10,4 +10,5 @@ import (
 func MakeRouter(engine *gin.Engine, db *gorm.DB) {
 	router := routes.NewRoutes(engine, db)
 	router.RegisterAuth()
+	router.RegisterRepositories()
 }
