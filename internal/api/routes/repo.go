@@ -9,7 +9,7 @@ func (r *RoutesImpl) RegisterRepositories() {
 	controller := controllers.NewRepoController(r.db)
 
 	routes := r.engine.Group("/api/repos")
-	protectedRoutes := routes.Group("/")
+	protectedRoutes := routes.Group("")
 	protectedRoutes.Use(middlewares.AuthRequired())
 
 	protectedRoutes.POST("", controller.Create)

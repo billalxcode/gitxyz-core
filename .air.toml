@@ -11,8 +11,8 @@ tmp_dir = "tmp"
   cmd = "go build -o ./tmp/main ."
   delay = 1000
   entrypoint = ["./tmp/main"]
-  exclude_dir = ["assets", "tmp", "vendor", "testdata"]
-  exclude_file = []
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", ".agents", ".claude", "db"]
+  exclude_file = ["skills-lock.json"]
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
@@ -41,6 +41,7 @@ tmp_dir = "tmp"
   watcher = "cyan"
 
 [log]
+  log = "air.log"
   main_only = false
   silent = false
   time = false
