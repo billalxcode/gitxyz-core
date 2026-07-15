@@ -15,6 +15,7 @@ func (r *RoutesImpl) RegisterAuth() {
 
 	publicRoutes.POST("/register", controller.Register)
 	publicRoutes.POST("/login", controller.Login)
+	publicRoutes.POST("/refresh-token", controller.RefreshToken)
 	publicRoutes.POST("/send-verification-email", controller.SendVerificationEmail)
 	publicRoutes.POST("/verify-email", controller.VerifyEmail)
 	publicRoutes.POST("/send-reset-password", controller.SendPasswordReset)

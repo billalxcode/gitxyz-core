@@ -30,6 +30,8 @@ Panduan ini untuk agent yang bekerja di repo ini. Tujuan utamanya adalah menjaga
 6. Pertahankan validasi input di DTO dan service.
 7. Saat mengubah model atau skema, pikirkan dampaknya pada GORM dan migrasi.
 8. Verifikasi hasil perubahan dengan go test dan, bila perlu, uji endpoint lewat curl atau HTTP client.
+9. Jangan menjalankan aplikasi secara manual dengan go run. Jika pemilik proyek ingin menjalankan server, gunakan Air sesuai instruksi pemilik.
+10. Jika ada kebutuhan menjalankan aplikasi untuk verifikasi, minta izin pemilik terlebih dahulu atau ikuti arahan yang sudah disepakati.
 
 ## Dokumen terkait
 
