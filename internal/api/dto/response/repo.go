@@ -5,9 +5,6 @@ import (
 	"time"
 )
 
-// RepositoryResponse is the safe, filtered projection of a Repository that is
-// returned to API clients. It intentionally omits the nested User association
-// and GORM internals (e.g. DeletedAt) to avoid leaking zero-value structs.
 type RepositoryResponse struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -20,8 +17,6 @@ type RepositoryResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// ToRepositoryResponse builds the response. owner is the repository path
-// prefix (typically the owner's username), e.g. "gitxyz" for "gitxyz/gitxyz".
 func ToRepositoryResponse(repo *models.Repository, owner string) RepositoryResponse {
 	fullName := repo.Name
 	if owner != "" {
