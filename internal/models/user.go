@@ -15,7 +15,7 @@ type User struct {
 	Username string `json:"username" gorm:"sze:255;not null;unique"`
 	Email    string `json:"email" gorm:"uniqueIndex;not null"`
 	Password string `json:"-" gorm:"size:255"`
-
+	Role     string `json:"role" gorm:"size:20;not null;default:user"`
 	IsActive bool   `json:"is_active" gorm:"index;not null"`
 	Avatar   string `json:"avatar" gorm:"not null"`
 	Bio      string `json:"bio"`
@@ -23,6 +23,15 @@ type User struct {
 
 	LastLoginAt time.Time `json:"last_login_at"`
 }
+
+// System role constants.
+const (
+	RoleOwner      = "owner"
+	RoleAdmin      = "admin"
+	RoleMaintainer = "maintainer"
+	RoleUser       = "user"
+	RoleGuest      = "guest"
+)
 
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if err := u.Base.BeforeCreate(tx); err != nil {
