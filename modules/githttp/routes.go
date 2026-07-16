@@ -12,7 +12,7 @@ func RegisterRoutes(server *gin.Engine, tx *gorm.DB) {
 
 	routes := server.Group("/:username/:reponame")
 
-	routes.Use(middlewares.AuthMiddleware())
+	routes.Use(middlewares.AuthMiddleware(tx))
 
 	routes.Match([]string{"GET"}, "/info/refs", controller.InfoRefs)
 	routes.Match([]string{"POST", "OPTIONS"}, "/git-receive-pack", controller.ReceivePack)
