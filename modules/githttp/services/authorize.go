@@ -30,15 +30,20 @@ func (s *GitServiceImpl) Authorize(ctx *gin.Context, options helper.Options) boo
 
 	permission := NewPermission(s.db)
 
+	// Use the authenticated username (set by AuthMiddleware), not the URL owner.
+	username := ctx.GetString("username")
+
 	switch options.ServiceType {
 	case helper.ServiceTypeReceivePack:
-		if !permission.CanRead(options.UserName, options.RepoName) {
-			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "read access denied"})
+		// Push requires write permission.
+		if !permission.CanWrite(username, options.RepoName) {
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "write access denied"})
 			return false
 		}
 	case helper.ServiceTypeUploadPack:
-		if !permission.CanWrite(options.UserName, options.RepoName) {
-			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "write access denied"})
+		// Clone/fetch requires read permission.
+		if !permission.CanRead(username, options.RepoName) {
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "read access denied"})
 			return false
 		}
 	default:
