@@ -6,21 +6,42 @@ import (
 )
 
 func (r *RoutesImpl) RegisterAuth() {
-	controller := controllers.NewAuthController(r.db)
+	authController := controllers.NewAuthController(r.db)
+	userController := controllers.NewUserController(r.db)
 
-	routes := r.engine.Group("/api/auth")
-	publicRoutes := routes.Group("/")
-	protectedRoutes := routes.Group("/")
-	protectedRoutes.Use(middlewares.AuthRequired())
+	// --- Auth routes (ENDPOINT.md §2) ---
+	auth := r.engine.Group("/api/auth")
+	public := auth.Group("/")
+	protected := auth.Group("/")
+	protected.Use(middlewares.AuthRequired())
 
-	publicRoutes.POST("/register", controller.Register)
-	publicRoutes.POST("/login", controller.Login)
-	publicRoutes.POST("/refresh-token", controller.RefreshToken)
-	publicRoutes.POST("/send-verification-email", controller.SendVerificationEmail)
-	publicRoutes.POST("/verify-email", controller.VerifyEmail)
-	publicRoutes.POST("/send-reset-password", controller.SendPasswordReset)
-	publicRoutes.POST("/reset-password", controller.ResetPassword)
+	public.POST("/register", authController.Register)
+	public.POST("/login", authController.Login)
+	public.POST("/token/refresh", authController.RefreshToken)
+	public.POST("/send-verification-email", authController.SendVerificationEmail)
+	public.POST("/verify-email", authController.VerifyEmail)
+	public.POST("/send-reset-password", authController.SendPasswordReset)
+	public.POST("/reset-password", authController.ResetPassword)
 
-	protectedRoutes.POST("/logout", controller.Logout)
-	protectedRoutes.GET("/me", controller.Profile)
+	protected.POST("/logout", authController.Logout)
+	protected.GET("/me", authController.Profile)
+
+	// --- User routes (ENDPOINT.md §2) ---
+	user := r.engine.Group("/api/user")
+	user.Use(middlewares.AuthRequired())
+
+	user.GET("", authController.Profile)         // GET /user — profil sendiri
+	user.PATCH("", authController.UpdateProfile) // PATCH /user
+	user.POST("/change-password", authController.ChangePassword)
+
+	user.GET("/keys", userController.ListSSHKeys) // GET /user/keys
+	user.POST("/keys", userController.AddSSHKey)  // POST /user/keys
+	user.DELETE("/keys/:id", userController.DeleteSSHKey)
+
+	user.GET("/tokens", userController.ListTokens)   // GET /user/tokens
+	user.POST("/tokens", userController.CreateToken) // POST /user/tokens
+	user.DELETE("/tokens/:id", userController.DeleteToken)
+
+	// Public user lookup
+	r.engine.GET("/api/users/:username", authController.GetUserByUsername)
 }

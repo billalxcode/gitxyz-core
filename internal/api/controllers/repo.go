@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 
+	response "gitxyz/internal/api/dto/response"
 	"gitxyz/internal/api/services"
 	"gitxyz/internal/models"
 
@@ -44,6 +45,7 @@ func (c *RepoControllerImpl) Create(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user context missing"})
 		return
 	}
+	owner, _ := ctx.Get("username")
 
 	repo := &models.Repository{
 		Name:        request.Name,
@@ -58,5 +60,8 @@ func (c *RepoControllerImpl) Create(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "repository created", "data": repo})
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message": "repository created",
+		"data":    response.ToRepositoryResponse(repo, owner.(string)),
+	})
 }

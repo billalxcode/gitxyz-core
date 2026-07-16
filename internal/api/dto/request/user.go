@@ -27,3 +27,13 @@ type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6,max=24"`
 }
+
+type AddSSHKeyRequest struct {
+	Title     string `json:"title" binding:"required"`
+	PublicKey string `json:"public_key" binding:"required"`
+}
+
+type CreateTokenRequest struct {
+	Name   string `json:"name" binding:"required"`
+	Scopes string `json:"scopes"`
+}
