@@ -99,7 +99,7 @@ func (s *UserServiceImpl) CreateToken(userID, name, scopes string) (models.Perso
 	if err := s.Tokens.Create(token); err != nil {
 		return models.PersonalAccessToken{}, "", err
 	}
-	// Return the plaintext token only once, at creation time.
+
 	return *token, plain, nil
 }
 

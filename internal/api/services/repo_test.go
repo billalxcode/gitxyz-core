@@ -44,7 +44,7 @@ func TestCreateRepositorySuccess(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if repo.PhysicalPath == "" {
-		t.Fatal("physical path should be generated")
+	if repo.ID == [16]byte{} {
+		t.Fatal("repo ID should be assigned by the model hook")
 	}
 }

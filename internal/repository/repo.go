@@ -10,7 +10,6 @@ import (
 type RepoRepository interface {
 	Create(repo *models.Repository) error
 	FindById(id string) (repo models.Repository, err error)
-	FindByPhysicalPath(path string) (repo models.Repository, err error)
 	FindByName(name string) (repo models.Repository, err error)
 	ExistsByName(name string) bool
 }
@@ -46,12 +45,6 @@ func (r *RepoRepositoryImpl) Create(repo *models.Repository) error {
 
 func (r *RepoRepositoryImpl) FindById(id string) (repo models.Repository, err error) {
 	result := r.db.First(&repo, "id = ?", id)
-
-	return check(result, &repo)
-}
-
-func (r *RepoRepositoryImpl) FindByPhysicalPath(path string) (repo models.Repository, err error) {
-	result := r.db.Where("physical_path = ?", path).First(&repo)
 
 	return check(result, &repo)
 }

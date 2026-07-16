@@ -9,7 +9,6 @@ func (r *RoutesImpl) RegisterAuth() {
 	authController := controllers.NewAuthController(r.db)
 	userController := controllers.NewUserController(r.db)
 
-	// --- Auth routes (ENDPOINT.md §2) ---
 	auth := r.engine.Group("/api/auth")
 	public := auth.Group("/")
 	protected := auth.Group("/")
@@ -26,22 +25,20 @@ func (r *RoutesImpl) RegisterAuth() {
 	protected.POST("/logout", authController.Logout)
 	protected.GET("/me", authController.Profile)
 
-	// --- User routes (ENDPOINT.md §2) ---
 	user := r.engine.Group("/api/user")
 	user.Use(middlewares.AuthRequired())
 
-	user.GET("", authController.Profile)         // GET /user — profil sendiri
-	user.PATCH("", authController.UpdateProfile) // PATCH /user
+	user.GET("", authController.Profile)
+	user.PATCH("", authController.UpdateProfile)
 	user.POST("/change-password", authController.ChangePassword)
 
-	user.GET("/keys", userController.ListSSHKeys) // GET /user/keys
-	user.POST("/keys", userController.AddSSHKey)  // POST /user/keys
+	user.GET("/keys", userController.ListSSHKeys)
+	user.POST("/keys", userController.AddSSHKey)
 	user.DELETE("/keys/:id", userController.DeleteSSHKey)
 
-	user.GET("/tokens", userController.ListTokens)   // GET /user/tokens
-	user.POST("/tokens", userController.CreateToken) // POST /user/tokens
+	user.GET("/tokens", userController.ListTokens)
+	user.POST("/tokens", userController.CreateToken)
 	user.DELETE("/tokens/:id", userController.DeleteToken)
 
-	// Public user lookup
 	r.engine.GET("/api/users/:username", authController.GetUserByUsername)
 }

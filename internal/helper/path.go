@@ -1,18 +1,16 @@
 package helper
 
 import (
-	"crypto/sha512"
-	"fmt"
 	"path/filepath"
-	"time"
 
 	"github.com/spf13/viper"
 )
 
-func GenerateRepositoryPath() string {
-	hash := sha512.Sum512(fmt.Appendf(nil, "%d", time.Now().UnixNano()))
-	hashStr := fmt.Sprintf("%x", hash)[:16]
-
+// RepositoryStoragePath returns the on-disk location of a repository relative
+// to the project root, derived from its ID: "volume_path/<repoID>".
+// The path is deterministic (no random hash) so it can be rebuilt from the
+// repo ID alone — no physical_path column is stored.
+func RepositoryStoragePath(repoID string) string {
 	volumePath := viper.GetString("volume_path")
-	return filepath.Join(volumePath, hashStr)
+	return filepath.Join(volumePath, repoID)
 }

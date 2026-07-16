@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"gitxyz/internal/helper"
 	"gitxyz/internal/models"
 	"gitxyz/internal/repository"
 
@@ -32,7 +31,7 @@ func (s *RepoServiceImpl) CreateRepository(repo *models.Repository) error {
 		return errors.New("user id is required")
 	}
 
-	repo.PhysicalPath = helper.GenerateRepositoryPath()
-
+	// The on-disk path is derived from repo.ID at runtime (volume_path/<repoID>),
+	// so no physical_path column is stored.
 	return s.Repository.Create(repo)
 }
