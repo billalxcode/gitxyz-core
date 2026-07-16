@@ -10,7 +10,7 @@ import (
 )
 
 func GenerateRepositoryPath() string {
-	hash := sha512.Sum512([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+	hash := sha512.Sum512(fmt.Appendf(nil, "%d", time.Now().UnixNano()))
 	hashStr := fmt.Sprintf("%x", hash)[:16]
 
 	volumePath := viper.GetString("volume_path")
