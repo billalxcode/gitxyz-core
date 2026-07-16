@@ -2,6 +2,8 @@ package services
 
 import (
 	"fmt"
+	"net/http"
+
 	"gitxyz/modules/githttp/helper"
 	"gitxyz/pkg/git"
 
@@ -9,11 +11,18 @@ import (
 )
 
 func (s *GitServiceImpl) GetInfoRefs(ctx *gin.Context) {
-	options := helper.MakeOptionsFromContext(ctx)
+	options := helper.MakeOptionsFromContext(ctx, s.db)
 
-	physical_path, err := options.EnsureRepositoryStorage()
+	repoID := ctx.GetString("repo_id")
+	if repoID == "" {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "repository not found"})
+		return
+	}
+
+	storagePath, err := options.EnsureRepositoryStorage(repoID)
 	if err != nil {
 		ctx.AbortWithError(500, err)
+		return
 	}
 
 	authorized := s.Authorize(ctx, options)
@@ -22,20 +31,20 @@ func (s *GitServiceImpl) GetInfoRefs(ctx *gin.Context) {
 	}
 
 	cmd := git.NewCommand()
-	isBareRepository, err := cmd.IsBareRepository(physical_path)
+	isBareRepository, err := cmd.IsBareRepository(storagePath)
 	if err != nil {
 		ctx.AbortWithError(500, err)
 		return
 	}
 
 	if !isBareRepository {
-		if _, err := cmd.InitBare(physical_path); err != nil {
+		if _, err := cmd.InitBare(storagePath); err != nil {
 			ctx.AbortWithError(500, err)
 			return
 		}
 	}
 
-	refs, err := cmd.ReceivePack(physical_path)
+	refs, err := cmd.ReceivePack(storagePath)
 	if err != nil {
 		ctx.AbortWithError(500, err)
 		return

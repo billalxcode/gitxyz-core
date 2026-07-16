@@ -5,8 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gitxyz/internal/helper"
+
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
+	"gorm.io/gorm"
 )
 
 type ServiceType string
@@ -15,6 +17,8 @@ type Options struct {
 	ServiceType ServiceType
 	RepoName    string
 	UserName    string
+
+	db *gorm.DB
 }
 
 const (
@@ -23,9 +27,11 @@ const (
 	ServiceTypeUploadArchive = "upload-archive"
 )
 
-func MakeOptionsFromContext(ctx *gin.Context) Options {
+func MakeOptionsFromContext(ctx *gin.Context, db *gorm.DB) Options {
 	// initialize options
-	options := &Options{}
+	options := &Options{
+		db: db,
+	}
 
 	// get service type
 	service := ctx.Query("service")
@@ -52,20 +58,16 @@ func MakeOptionsFromContext(ctx *gin.Context) Options {
 	return *options
 }
 
-func (o *Options) GetRepositoryStorage() string {
+// GetRepositoryStorage resolves the absolute on-disk location of a repository
+// from its ID: "wd/volume_path/<repoID>". The path is deterministic and derived
+// from the repo ID alone — no physical_path column is stored.
+func (o *Options) GetRepositoryStorage(repoID string) string {
 	wd, _ := os.Getwd()
-	volumePath := viper.GetString("volume_path")
-
-	return filepath.Join(
-		wd,
-		volumePath,
-		o.UserName,
-		o.RepoName,
-	)
+	return filepath.Join(wd, helper.RepositoryStoragePath(repoID))
 }
 
-func (o *Options) EnsureRepositoryStorage() (string, error) {
-	path := o.GetRepositoryStorage()
+func (o *Options) EnsureRepositoryStorage(repoID string) (string, error) {
+	path := o.GetRepositoryStorage(repoID)
 	err := os.MkdirAll(path, 0755) // 0755 = rwxr-xr-x
 	if err != nil {
 		return "", err
