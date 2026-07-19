@@ -71,7 +71,7 @@ func (a *PermissionImpl) CanRead(ctx *gin.Context, reponame string) bool {
 		log.Debug("permission: read denied (no user)", slog.String("repo", reponame))
 		return false
 	}
-	if ctx.GetString("username") == repo.UserID {
+	if ctx.GetString("user_id") == repo.UserID {
 		log.Debug("permission: creator read allowed", slog.String("repo", reponame))
 		return true
 	}
@@ -126,7 +126,7 @@ func (a *PermissionImpl) CanWrite(ctx *gin.Context, reponame string) bool {
 		log.Debug("permission: write denied (no user)", slog.String("repo", reponame))
 		return false
 	}
-	if ctx.GetString("username") == repo.UserID {
+	if ctx.GetString("user_id") == repo.UserID {
 		log.Debug("permission: creator write allowed", slog.String("repo", reponame))
 		return true
 	}
