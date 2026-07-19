@@ -54,22 +54,28 @@ func (r *RoutesImpl) RegisterRepositories() {
 
 	// Issues — nested under the repository group.
 	issueController := controllers.NewIssueController(r.db)
-	repo.GET("/issues", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.List)
-	repo.POST("/issues", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Create)
-	repo.GET("/issues/:number", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.Get)
-	repo.PATCH("/issues/:number", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Update)
-	repo.DELETE("/issues/:number", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Delete)
+
+	// Issues collection + single issue.
+	issues := repo.Group("/issues")
+	issues.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.List)
+	issues.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Create)
+	issues.GET("/:number", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.Get)
+	issues.PATCH("/:number", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Update)
+	issues.DELETE("/:number", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Delete)
 
 	// Issue comments.
-	repo.GET("/issues/:number/comments", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListComments)
-	repo.POST("/issues/:number/comments", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.CreateComment)
+	issueComments := repo.Group("/issues/:number/comments")
+	issueComments.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListComments)
+	issueComments.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.CreateComment)
 
 	// Labels.
-	repo.GET("/labels", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListLabels)
-	repo.POST("/labels", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.CreateLabel)
+	labels := repo.Group("/labels")
+	labels.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListLabels)
+	labels.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.CreateLabel)
 
 	// Issue assignees.
-	repo.GET("/issues/:number/assignees", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListAssignees)
-	repo.POST("/issues/:number/assignees", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.AddAssignee)
-	repo.DELETE("/issues/:number/assignees/:username", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.RemoveAssignee)
+	assignees := repo.Group("/issues/:number/assignees")
+	assignees.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListAssignees)
+	assignees.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.AddAssignee)
+	assignees.DELETE("/:username", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.RemoveAssignee)
 }
