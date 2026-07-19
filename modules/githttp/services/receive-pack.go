@@ -22,6 +22,19 @@ func (s *GitServiceImpl) ReceivePack(ctx *gin.Context) {
 		return
 	}
 
+	storagePath, err := options.EnsureRepositoryStorage(repoID)
+	if err != nil {
+		log.Error("git receive-pack: storage error", slog.String("repo", options.RepoName), slog.String("error", err.Error()))
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	// Authorize the push (write permission). Anonymous clients receive a 401
+	// Basic challenge so Git prompts for credentials.
+	if !s.Authorize(ctx, options) {
+		return
+	}
+
 	log.Info("git receive-pack: push started",
 		slog.String("repo", options.RepoName),
 		slog.String("username", ctx.GetString("username")))
@@ -29,7 +42,7 @@ func (s *GitServiceImpl) ReceivePack(ctx *gin.Context) {
 	ctx.Header("Content-Type", "application/x-git-receive-pack-result")
 
 	cmd := git.NewCommand()
-	err := cmd.ReceivePackRPC(options.GetRepositoryStorage(repoID), ctx.Request.Body, ctx.Writer)
+	err = cmd.ReceivePackRPC(storagePath, ctx.Request.Body, ctx.Writer)
 	if err != nil {
 		log.Error("git receive-pack: push failed",
 			slog.String("repo", options.RepoName),
