@@ -16,6 +16,7 @@ type Claims struct {
 	UserID    string `json:"user_id"`
 	Username  string `json:"username"`
 	Email     string `json:"email"`
+	Role      string `json:"role"`
 	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
 }
@@ -59,6 +60,7 @@ func GenerateToken(user *models.User, tokenType string) (string, error) {
 		UserID:    user.ID.String(),
 		Username:  user.Username,
 		Email:     user.Email,
+		Role:      user.Role,
 		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID.String(),

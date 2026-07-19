@@ -1,9 +1,9 @@
 package models
 
 import (
+	"fmt"
+	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // SSHKey represents a user's registered SSH public key, used for Git over SSH
@@ -38,4 +38,47 @@ func (SSHKey) TableName() string { return "ssh_keys" }
 
 func (PersonalAccessToken) TableName() string { return "personal_access_tokens" }
 
-var _ = uuid.New
+// PAT scope constants.
+const (
+	ScopeRepoRead  = "repo:read"
+	ScopeRepoWrite = "repo:write"
+	ScopeUserRead  = "user:read"
+	ScopeUserWrite = "user:write"
+	ScopeAdmin     = "admin:*"
+)
+
+// ParseScopes splits a comma-separated scope string into a trimmed slice.
+func ParseScopes(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// knownScopes is the set of scopes a PAT may request.
+var knownScopes = map[string]struct{}{
+	ScopeRepoRead:  {},
+	ScopeRepoWrite: {},
+	ScopeUserRead:  {},
+	ScopeUserWrite: {},
+	ScopeAdmin:     {},
+}
+
+// ValidateScopes returns an error if any scope in raw is not a recognized
+// scope constant. The empty string (no scopes) is allowed.
+func ValidateScopes(raw string) error {
+	for _, s := range ParseScopes(raw) {
+		if _, ok := knownScopes[s]; !ok {
+			return fmt.Errorf("unknown scope %q", s)
+		}
+	}
+	return nil
+}

@@ -1,3 +1,4 @@
 database_url: host=localhost user=gitxyz password=gitxyz-kece-banget dbname=gitxyz port=5432 sslmode=disable TimeZone=Asia/Jakarta
 volume_path: ./volumes
 executable: /usr/bin/git
+log_level: info

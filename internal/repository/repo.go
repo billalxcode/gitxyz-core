@@ -11,6 +11,9 @@ type RepoRepository interface {
 	Create(repo *models.Repository) error
 	FindById(id string) (repo models.Repository, err error)
 	FindByName(name string) (repo models.Repository, err error)
+	FindByUserAndName(userID, name string) (repo models.Repository, err error)
+	Update(repo *models.Repository) error
+	Delete(id string) error
 	ExistsByName(name string) bool
 }
 
@@ -59,4 +62,21 @@ func (r *RepoRepositoryImpl) ExistsByName(name string) bool {
 	var count int64
 	r.db.Model(&models.Repository{}).Where("name = ?", name).Count(&count)
 	return count > 0
+}
+
+func (r *RepoRepositoryImpl) FindByUserAndName(userID, name string) (repo models.Repository, err error) {
+	result := r.db.Where("user_id = ? AND name = ?", userID, name).First(&repo)
+	return check(result, &repo)
+}
+
+func (r *RepoRepositoryImpl) Update(repo *models.Repository) error {
+	return r.db.Model(repo).Updates(map[string]interface{}{
+		"description": repo.Description,
+		"is_private":  repo.IsPrivate,
+		"is_active":   repo.IsActive,
+	}).Error
+}
+
+func (r *RepoRepositoryImpl) Delete(id string) error {
+	return r.db.Where("id = ?", id).Delete(&models.Repository{}).Error
 }

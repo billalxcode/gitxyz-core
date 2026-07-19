@@ -27,6 +27,69 @@ func TestCreateRepositoryValidation(t *testing.T) {
 	}
 }
 
+func TestEvaluatePolicyDenyWins(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := db.AutoMigrate(&models.User{}, &models.Policy{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	polRepo := repository.NewPolicyRepository(db)
+	if err := polRepo.Add(&models.Policy{
+		SubjectType: "user", SubjectID: "u1", Action: "repo:read",
+		ResourceType: "repository", ResourceID: "r1", Effect: "deny",
+	}); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	ok, err := EvaluatePolicy(db, "user", "u1", "repo:read", "repository", "r1")
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if ok {
+		t.Error("expected deny to win")
+	}
+}
+
+func TestEvaluatePolicyAdminBypass(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := db.AutoMigrate(&models.User{}, &models.Policy{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	ok, err := EvaluatePolicy(db, "role", "admin", "repo:write", "repository", "r1")
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if !ok {
+		t.Error("expected admin role to bypass")
+	}
+}
+
+func TestEvaluatePolicyUserAdminBypass(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := db.AutoMigrate(&models.User{}, &models.Policy{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	userRepo := repository.NewUserRepository(db)
+	if err := userRepo.Create(&models.User{Username: "admin1", Email: "a@e.com", Role: "admin"}); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	u, _ := userRepo.FindByUsername("admin1")
+	ok, err := EvaluatePolicy(db, "user", u.ID.String(), "repo:write", "repository", "r1")
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if !ok {
+		t.Error("expected admin user to bypass")
+	}
+}
+
 func TestCreateRepositorySuccess(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {

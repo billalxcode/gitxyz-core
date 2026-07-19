@@ -3,6 +3,7 @@ package routes
 import (
 	"gitxyz/internal/api/controllers"
 	"gitxyz/internal/api/middlewares"
+	"gitxyz/internal/models"
 )
 
 func (r *RoutesImpl) RegisterAuth() {
@@ -36,9 +37,14 @@ func (r *RoutesImpl) RegisterAuth() {
 	user.POST("/keys", userController.AddSSHKey)
 	user.DELETE("/keys/:id", userController.DeleteSSHKey)
 
+	// Token management requires a PAT-capable credential (or admin/owner role).
+	user.Use(middlewares.RequireScope(r.db, models.ScopeUserWrite))
 	user.GET("/tokens", userController.ListTokens)
 	user.POST("/tokens", userController.CreateToken)
 	user.DELETE("/tokens/:id", userController.DeleteToken)
 
-	r.engine.GET("/api/users/:username", authController.GetUserByUsername)
+	// Admin-only user lookup.
+	admin := r.engine.Group("/api/users")
+	admin.Use(middlewares.AuthRequired(), middlewares.RequireRole(models.RoleAdmin, models.RoleOwner))
+	admin.GET("/:username", authController.GetUserByUsername)
 }
