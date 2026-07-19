@@ -1,10 +1,13 @@
 package middlewares
 
 import (
+	"log/slog"
+	"net/http"
+
 	"gitxyz/internal/helper"
+	"gitxyz/internal/logger"
 	"gitxyz/internal/repository"
 	githttpHelper "gitxyz/modules/githttp/helper"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -16,26 +19,37 @@ func AuthMiddleware(db *gorm.DB) gin.HandlerFunc {
 	repoRepo := repository.NewRepoRepository(db)
 
 	return func(ctx *gin.Context) {
+		log := logger.FromGin(ctx)
+		options := githttpHelper.MakeOptionsFromContext(ctx, db)
 		username, secret, ok := ctx.Request.BasicAuth()
 		if !ok {
+			log.Debug("git auth: anonymous request",
+				slog.String("repo", options.RepoName))
 			ctx.Set("username", "")
 			ctx.Set("role", "")
 			ctx.Set("token_scopes", "")
 			ctx.Set("token_type", "")
 		} else if res, authed := authenticate(userRepo, patRepo, username, secret); authed {
+			log.Info("git auth: authenticated",
+				slog.String("username", username),
+				slog.String("token_type", res.TokenType),
+				slog.String("role", res.Role))
 			ctx.Set("username", username)
 			ctx.Set("role", res.Role)
 			ctx.Set("token_scopes", res.Scopes)
 			ctx.Set("token_type", res.TokenType)
 		} else {
+			log.Warn("git auth: failed",
+				slog.String("username", username))
 			ctx.Header("WWW-Authenticate", `Basic realm="Git"`)
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		options := githttpHelper.MakeOptionsFromContext(ctx, db)
 		repo, err := repoRepo.FindByName(options.RepoName)
 		if err != nil {
+			log.Warn("git auth: repository not found",
+				slog.String("repo", options.RepoName))
 			ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 				"error": "repository not found",
 			})
