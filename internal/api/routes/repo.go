@@ -14,6 +14,11 @@ func (r *RoutesImpl) RegisterRepositories() {
 	repos.Use(middlewares.AuthRequired())
 	repos.POST("", controller.Create)
 
+	// /api/users/:username/repos — list a user's repositories.
+	userRepos := r.engine.Group("/api/users/:username/repos")
+	userRepos.Use(middlewares.AuthRequired())
+	userRepos.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.List)
+
 	// /api/repos/:owner/:reponame — single repository + collaborators + policies.
 	repo := r.engine.Group("/api/repos/:owner/:reponame")
 	repo.Use(middlewares.AuthRequired())
@@ -23,6 +28,18 @@ func (r *RoutesImpl) RegisterRepositories() {
 	// Write requires repo:write scope (or admin/owner role via RequireScope).
 	repo.PATCH("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), controller.Update)
 	repo.DELETE("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), controller.Delete)
+
+	// Branches.
+	repo.GET("/branches", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.ListBranches)
+	repo.DELETE("/branches/:branch", middlewares.RequireScope(r.db, models.ScopeRepoWrite), controller.DeleteBranch)
+
+	// Commits.
+	repo.GET("/commits", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.ListCommits)
+	repo.GET("/commits/:sha", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.GetCommit)
+
+	// Contents / file browsing.
+	repo.GET("/contents/*path", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.GetContents)
+	repo.GET("/raw/*path", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.GetFile)
 
 	// Collaborator management — repo:write scope.
 	repo.GET("/collaborators", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.ListCollaborators)

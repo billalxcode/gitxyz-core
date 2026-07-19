@@ -11,6 +11,7 @@ import (
 type RepoService interface {
 	CreateRepository(repo *models.Repository) error
 	GetRepository(owner, name string) (*models.Repository, error)
+	ListRepositories(owner string) ([]models.Repository, error)
 	UpdateRepository(owner, name string, repo *models.Repository) (*models.Repository, error)
 	DeleteRepository(owner, name string) error
 
@@ -73,6 +74,18 @@ func (s *RepoServiceImpl) resolveRepo(owner, name string) (*models.Repository, e
 
 func (s *RepoServiceImpl) GetRepository(owner, name string) (*models.Repository, error) {
 	return s.resolveRepo(owner, name)
+}
+
+func (s *RepoServiceImpl) ListRepositories(owner string) ([]models.Repository, error) {
+	user, err := s.Users.FindByUsername(owner)
+	if err != nil {
+		return nil, errors.New("owner not found")
+	}
+	var repos []models.Repository
+	if err := s.Repository.(*repository.RepoRepositoryImpl).ListByUser(user.ID.String(), &repos); err != nil {
+		return nil, err
+	}
+	return repos, nil
 }
 
 func (s *RepoServiceImpl) UpdateRepository(owner, name string, patch *models.Repository) (*models.Repository, error) {

@@ -5,6 +5,7 @@ import (
 
 	"gitxyz/internal/api/services"
 	"gitxyz/internal/models"
+	"gitxyz/internal/repository"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -54,8 +55,39 @@ func RequireScope(db *gorm.DB, scope string) gin.HandlerFunc {
 			ctx.Next()
 			return
 		}
+		// The repository owner (creator) is always allowed on their own repo,
+		// regardless of their system role.
+		if isRepoOwner(ctx, db) {
+			ctx.Next()
+			return
+		}
 		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient role for scope"})
 	}
+}
+
+// isRepoOwner reports whether the authenticated user owns the repository
+// referenced by the :owner/:reponame path params.
+func isRepoOwner(ctx *gin.Context, db *gorm.DB) bool {
+	owner := ctx.Param("owner")
+	reponame := ctx.Param("reponame")
+	if owner == "" || reponame == "" {
+		return false
+	}
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.FindByUsername(owner)
+	if err != nil {
+		return false
+	}
+	currentUserID := ctx.GetString("user_id")
+	if currentUserID == "" {
+		return false
+	}
+	if user.ID.String() != currentUserID {
+		return false
+	}
+	repoRepo := repository.NewRepoRepository(db)
+	_, err = repoRepo.FindByUserAndName(user.ID.String(), reponame)
+	return err == nil
 }
 
 // CheckPolicy evaluates ABAC for a specific resource action.
