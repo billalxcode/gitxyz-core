@@ -24,6 +24,9 @@ func init() {
 	if !viper.IsSet("jwt_expiry_hours") {
 		viper.Set("jwt_expiry_hours", 24)
 	}
+	if !viper.IsSet("log_level") {
+		viper.Set("log_level", "info")
+	}
 
 	viper.SafeWriteConfig()
 
