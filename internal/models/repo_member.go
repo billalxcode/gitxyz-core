@@ -24,3 +24,21 @@ func (m *RepositoryMember) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (RepositoryMember) TableName() string { return "repository_members" }
+
+// Repository (per-repo collaborator) role constants.
+const (
+	RepoRoleOwner      = "owner"
+	RepoRoleMaintainer = "maintainer"
+	RepoRoleTriager    = "triager"
+	RepoRoleReader     = "reader"
+	RepoRoleGuest      = "guest"
+)
+
+// ValidRepoRole reports whether role is a recognized repository role.
+func ValidRepoRole(role string) bool {
+	switch role {
+	case RepoRoleOwner, RepoRoleMaintainer, RepoRoleTriager, RepoRoleReader, RepoRoleGuest:
+		return true
+	}
+	return false
+}

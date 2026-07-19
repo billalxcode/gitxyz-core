@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -60,4 +61,24 @@ func ParseScopes(raw string) []string {
 		}
 	}
 	return out
+}
+
+// knownScopes is the set of scopes a PAT may request.
+var knownScopes = map[string]struct{}{
+	ScopeRepoRead:  {},
+	ScopeRepoWrite: {},
+	ScopeUserRead:  {},
+	ScopeUserWrite: {},
+	ScopeAdmin:     {},
+}
+
+// ValidateScopes returns an error if any scope in raw is not a recognized
+// scope constant. The empty string (no scopes) is allowed.
+func ValidateScopes(raw string) error {
+	for _, s := range ParseScopes(raw) {
+		if _, ok := knownScopes[s]; !ok {
+			return fmt.Errorf("unknown scope %q", s)
+		}
+	}
+	return nil
 }
