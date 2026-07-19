@@ -83,6 +83,10 @@ func (s *UserServiceImpl) CreateToken(userID, name, scopes string) (models.Perso
 		return models.PersonalAccessToken{}, "", errors.New("token name is required")
 	}
 
+	if err := models.ValidateScopes(scopes); err != nil {
+		return models.PersonalAccessToken{}, "", err
+	}
+
 	plain, prefix, hash, err := helper.GenerateToken()
 	if err != nil {
 		return models.PersonalAccessToken{}, "", err
