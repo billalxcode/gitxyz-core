@@ -17,4 +17,5 @@ func RegisterRoutes(server *gin.Engine, tx *gorm.DB) {
 
 	routes.Match([]string{"GET"}, "/info/refs", controller.InfoRefs)
 	routes.Match([]string{"POST", "OPTIONS"}, "/git-receive-pack", controller.ReceivePack)
+	routes.Match([]string{"POST", "OPTIONS"}, "/git-upload-pack", controller.UploadPack)
 }

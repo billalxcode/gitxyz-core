@@ -11,6 +11,7 @@ type (
 	GitHTTPController interface {
 		InfoRefs(ctx *gin.Context)
 		ReceivePack(ctx *gin.Context)
+		UploadPack(ctx *gin.Context)
 	}
 
 	gitHTTPController struct {
@@ -34,4 +35,8 @@ func (c *gitHTTPController) InfoRefs(ctx *gin.Context) {
 
 func (c *gitHTTPController) ReceivePack(ctx *gin.Context) {
 	c.service.ReceivePack(ctx)
+}
+
+func (c *gitHTTPController) UploadPack(ctx *gin.Context) {
+	c.service.UploadPack(ctx)
 }

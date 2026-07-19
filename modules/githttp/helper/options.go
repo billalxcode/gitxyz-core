@@ -33,8 +33,22 @@ func MakeOptionsFromContext(ctx *gin.Context, db *gorm.DB) Options {
 		db: db,
 	}
 
+	username := ctx.Param("username")
+	options.UserName = username
+
+	reponame := ctx.Param("reponame")
+	options.RepoName = strings.TrimSuffix(reponame, ".git")
+
 	// get service type
 	service := ctx.Query("service")
+	if service == "" {
+		// On the actual RPC endpoints (POST /git-receive-pack,
+		// POST /git-upload-pack) the service is in the path, not the query.
+		path := ctx.Request.URL.Path
+		service = strings.TrimPrefix(path, "/"+username+"/"+reponame)
+		service = strings.TrimPrefix(service, "/")
+		service = strings.TrimSuffix(service, "/")
+	}
 	switch service {
 	case "git-receive-pack":
 		options.ServiceType = ServiceTypeReceivePack
@@ -48,12 +62,6 @@ func MakeOptionsFromContext(ctx *gin.Context, db *gorm.DB) Options {
 	default:
 		options.ServiceType = ""
 	}
-
-	username := ctx.Param("username")
-	options.UserName = username
-
-	reponame := ctx.Param("reponame")
-	options.RepoName = strings.TrimSuffix(reponame, ".git")
 
 	return *options
 }
