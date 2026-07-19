@@ -12,6 +12,7 @@ type RepoRepository interface {
 	FindById(id string) (repo models.Repository, err error)
 	FindByName(name string) (repo models.Repository, err error)
 	FindByUserAndName(userID, name string) (repo models.Repository, err error)
+	ListByUser(userID string, dest *[]models.Repository) error
 	Update(repo *models.Repository) error
 	Delete(id string) error
 	ExistsByName(name string) bool
@@ -67,6 +68,10 @@ func (r *RepoRepositoryImpl) ExistsByName(name string) bool {
 func (r *RepoRepositoryImpl) FindByUserAndName(userID, name string) (repo models.Repository, err error) {
 	result := r.db.Where("user_id = ? AND name = ?", userID, name).First(&repo)
 	return check(result, &repo)
+}
+
+func (r *RepoRepositoryImpl) ListByUser(userID string, dest *[]models.Repository) error {
+	return r.db.Where("user_id = ?", userID).Order("created_at DESC").Find(dest).Error
 }
 
 func (r *RepoRepositoryImpl) Update(repo *models.Repository) error {

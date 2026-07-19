@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	dto "gitxyz/internal/api/dto/request"
 	response "gitxyz/internal/api/dto/response"
 	"gitxyz/internal/api/services"
 	"gitxyz/internal/models"
+	githttpsvc "gitxyz/modules/githttp/services"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -15,8 +17,16 @@ import (
 type RepoController interface {
 	Create(ctx *gin.Context)
 	Get(ctx *gin.Context)
+	List(ctx *gin.Context)
 	Update(ctx *gin.Context)
 	Delete(ctx *gin.Context)
+
+	ListBranches(ctx *gin.Context)
+	DeleteBranch(ctx *gin.Context)
+	ListCommits(ctx *gin.Context)
+	GetCommit(ctx *gin.Context)
+	GetContents(ctx *gin.Context)
+	GetFile(ctx *gin.Context)
 
 	ListCollaborators(ctx *gin.Context)
 	AddCollaborator(ctx *gin.Context)
@@ -30,6 +40,7 @@ type RepoController interface {
 
 type RepoControllerImpl struct {
 	service services.RepoService
+	git     services.GitQueryService
 	db      *gorm.DB
 }
 
@@ -38,6 +49,7 @@ func NewRepoController(db *gorm.DB) RepoController {
 
 	return &RepoControllerImpl{
 		service: service,
+		git:     services.NewGitQueryService(db),
 		db:      db,
 	}
 }
@@ -141,6 +153,152 @@ func (c *RepoControllerImpl) Delete(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "repository deleted"})
+}
+
+func (c *RepoControllerImpl) List(ctx *gin.Context) {
+	owner := ctx.Param("owner")
+
+	repos, err := c.service.ListRepositories(owner)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "repositories fetched",
+		"data":    response.ToRepositoryResponseSlice(repos, owner),
+	})
+}
+
+// resolveReadableRepo resolves the repo and enforces read permission.
+// Returns the repo on success; on failure it writes the error response and
+// returns nil.
+func (c *RepoControllerImpl) resolveReadableRepo(ctx *gin.Context) *models.Repository {
+	owner := ctx.Param("owner")
+	name := ctx.Param("reponame")
+
+	repo, err := c.service.GetRepository(owner, name)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return nil
+	}
+
+	// Reuse githttp permission logic for read access.
+	perm := githttpsvc.NewPermission(c.db)
+	if !perm.CanRead(ctx, name) {
+		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return nil
+	}
+	return repo
+}
+
+func (c *RepoControllerImpl) ListBranches(ctx *gin.Context) {
+	repo := c.resolveReadableRepo(ctx)
+	if repo == nil {
+		return
+	}
+	branches, err := c.git.ListBranches(repo.ID.String())
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "branches fetched",
+		"data":    branches,
+	})
+}
+
+func (c *RepoControllerImpl) DeleteBranch(ctx *gin.Context) {
+	owner := ctx.Param("owner")
+	name := ctx.Param("reponame")
+	branch := ctx.Param("branch")
+
+	repo, err := c.service.GetRepository(owner, name)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	perm := githttpsvc.NewPermission(c.db)
+	if !perm.CanWrite(ctx, name) {
+		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+	if err := c.git.DeleteBranch(repo.ID.String(), branch); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "branch deleted"})
+}
+
+func (c *RepoControllerImpl) ListCommits(ctx *gin.Context) {
+	repo := c.resolveReadableRepo(ctx)
+	if repo == nil {
+		return
+	}
+	ref := ctx.Query("ref")
+	limit := 30
+	if l := ctx.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	commits, err := c.git.ListCommits(repo.ID.String(), ref, limit)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "commits fetched",
+		"data":    commits,
+	})
+}
+
+func (c *RepoControllerImpl) GetCommit(ctx *gin.Context) {
+	repo := c.resolveReadableRepo(ctx)
+	if repo == nil {
+		return
+	}
+	sha := ctx.Param("sha")
+	commit, err := c.git.GetCommit(repo.ID.String(), sha)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "commit fetched",
+		"data":    commit,
+	})
+}
+
+func (c *RepoControllerImpl) GetContents(ctx *gin.Context) {
+	repo := c.resolveReadableRepo(ctx)
+	if repo == nil {
+		return
+	}
+	ref := ctx.Query("ref")
+	path := ctx.Param("path")
+	entries, err := c.git.GetContents(repo.ID.String(), ref, path)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "contents fetched",
+		"data":    entries,
+	})
+}
+
+func (c *RepoControllerImpl) GetFile(ctx *gin.Context) {
+	repo := c.resolveReadableRepo(ctx)
+	if repo == nil {
+		return
+	}
+	ref := ctx.Query("ref")
+	path := ctx.Param("path")
+	data, err := c.git.GetFile(repo.ID.String(), ref, path)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.Data(http.StatusOK, "text/plain; charset=utf-8", data)
 }
 
 func (c *RepoControllerImpl) ListCollaborators(ctx *gin.Context) {

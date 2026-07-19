@@ -22,6 +22,11 @@ func NewCommand() *Git {
 	}
 }
 
+// Executable returns the configured git binary path.
+func (g *Git) Executable() string {
+	return g.executable
+}
+
 func (g *Git) IsBareRepository(path string) (bool, error) {
 	out, err := exec.Command(
 		g.executable,
