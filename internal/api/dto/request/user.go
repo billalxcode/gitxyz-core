@@ -37,3 +37,16 @@ type CreateTokenRequest struct {
 	Name   string `json:"name" binding:"required"`
 	Scopes string `json:"scopes"`
 }
+
+type CollaboratorRequest struct {
+	Username string `json:"username" binding:"required"`
+	Role     string `json:"role" binding:"required"`
+}
+
+type PolicyRequest struct {
+	SubjectType string `json:"subject_type" binding:"required"`
+	SubjectID   string `json:"subject_id" binding:"required"`
+	Action      string `json:"action" binding:"required"`
+	ResourceID  string `json:"resource_id"`
+	Effect      string `json:"effect" binding:"required"`
+}
