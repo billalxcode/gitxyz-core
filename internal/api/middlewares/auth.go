@@ -52,6 +52,13 @@ func AuthRequired() gin.HandlerFunc {
 			}
 		}
 
+		// Without a resolvable user ID we cannot attribute any mutation
+		// (FK constraints on author_id would fail). Reject the request.
+		if userID == "" {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unable to resolve user from token"})
+			return
+		}
+
 		ctx.Set("user_id", userID)
 		ctx.Set("username", claims.Username)
 		ctx.Set("email", claims.Email)

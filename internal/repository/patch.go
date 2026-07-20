@@ -92,17 +92,20 @@ func (r *PatchRepositoryImpl) FindByID(id string) (models.PatchRequest, error) {
 }
 
 func (r *PatchRepositoryImpl) Update(patch *models.PatchRequest) error {
-	return r.db.Model(patch).Updates(map[string]interface{}{
-		"title":            patch.Title,
-		"body":             patch.Body,
-		"state":            patch.State,
-		"merge_commit_sha": patch.MergeCommitSHA,
-		"is_mergeable":     patch.IsMergeable,
-		"base_sha":         patch.BaseSHA,
-		"head_sha":         patch.HeadSHA,
-		"merged_at":        patch.MergedAt,
-		"closed_at":        patch.ClosedAt,
-	}).Error
+	return r.db.
+		Model(patch).
+		Omit("Author", "Reviewers", "Comments", "Commits", "Files", "Reviews").
+		Updates(map[string]interface{}{
+			"title":            patch.Title,
+			"body":             patch.Body,
+			"state":            patch.State,
+			"merge_commit_sha": patch.MergeCommitSHA,
+			"is_mergeable":     patch.IsMergeable,
+			"base_sha":         patch.BaseSHA,
+			"head_sha":         patch.HeadSHA,
+			"merged_at":        patch.MergedAt,
+			"closed_at":        patch.ClosedAt,
+		}).Error
 }
 
 func (r *PatchRepositoryImpl) Delete(patch *models.PatchRequest) error {
@@ -166,13 +169,15 @@ func (r *PatchRepositoryImpl) AddReviewer(patchID, userID string) error {
 
 func (r *PatchRepositoryImpl) RemoveReviewer(patchID, userID string) error {
 	return r.db.
+		Unscoped().
 		Where("patch_id = ? AND user_id = ?", patchID, userID).
 		Delete(&models.PatchReviewer{}).Error
 }
 
 func (r *PatchRepositoryImpl) FindReviewers(patchID string, dest *[]models.User) error {
 	return r.db.
-		Joins("JOIN patch_reviewers ON patch_reviewers.user_id = users.id").
+		Select("users.*").
+		Joins("JOIN patch_reviewers ON patch_reviewers.user_id = users.id AND patch_reviewers.deleted_at IS NULL").
 		Where("patch_reviewers.patch_id = ?", patchID).
 		Find(dest).Error
 }

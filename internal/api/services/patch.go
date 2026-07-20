@@ -8,6 +8,7 @@ import (
 	"gitxyz/internal/models"
 	"gitxyz/internal/repository"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -68,6 +69,12 @@ func (s *PatchServiceImpl) ListPatches(owner, name string) ([]models.PatchReques
 }
 
 func (s *PatchServiceImpl) CreatePatch(owner, name, authorID, title, body, sourceBranch, targetBranch string) (*models.PatchRequest, error) {
+	// Validate the author exists before any mutation; otherwise the FK on
+	// patch_requests.author_id would fail with a cryptic constraint error.
+	if _, err := s.Users.FindByID(authorID); err != nil {
+		return nil, errors.New("author not found")
+	}
+
 	repo, err := s.resolve(owner, name)
 	if err != nil {
 		return nil, err
@@ -306,8 +313,8 @@ func (s *PatchServiceImpl) MergePatch(owner, name string, number int, mergerID s
 	}
 
 	merger, err := s.Users.FindByID(mergerID)
-	if err != nil {
-		return nil, err
+	if err != nil || merger.ID == uuid.Nil {
+		return nil, errors.New("merger not found")
 	}
 
 	mergeCommit, err := s.Git.PerformMerge(
