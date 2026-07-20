@@ -19,6 +19,7 @@ func Initialize() {
 	server := gin.New()
 	server.Use(gin.Recovery())
 	server.Use(middlewares.RequestID())
+	server.Use(middlewares.InjectDB(db))
 
 	MakeRouter(server, db)
 

@@ -51,4 +51,31 @@ func (r *RoutesImpl) RegisterRepositories() {
 	repo.GET("/policies", middlewares.RequireScope(r.db, models.ScopeRepoRead), controller.ListPolicies)
 	repo.POST("/policies", middlewares.RequireScope(r.db, models.ScopeRepoWrite), controller.AddPolicy)
 	repo.DELETE("/policies/:id", middlewares.RequireScope(r.db, models.ScopeRepoWrite), controller.RemovePolicy)
+
+	// Issues — nested under the repository group.
+	issueController := controllers.NewIssueController(r.db)
+
+	// Issues collection + single issue.
+	issues := repo.Group("/issues")
+	issues.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.List)
+	issues.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Create)
+	issues.GET("/:number", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.Get)
+	issues.PATCH("/:number", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Update)
+	issues.DELETE("/:number", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.Delete)
+
+	// Issue comments.
+	issueComments := repo.Group("/issues/:number/comments")
+	issueComments.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListComments)
+	issueComments.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.CreateComment)
+
+	// Labels.
+	labels := repo.Group("/labels")
+	labels.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListLabels)
+	labels.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.CreateLabel)
+
+	// Issue assignees.
+	assignees := repo.Group("/issues/:number/assignees")
+	assignees.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListAssignees)
+	assignees.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.AddAssignee)
+	assignees.DELETE("/:username", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.RemoveAssignee)
 }
