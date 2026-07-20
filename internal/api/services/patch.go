@@ -24,11 +24,11 @@ type PatchService interface {
 	ListCommits(owner, name string, number int) ([]models.PatchCommit, error)
 	ListFiles(owner, name string, number int) ([]models.PatchFile, error)
 
-	AssignReviewer(owner, name string, number int, username string) error
-	UnassignReviewer(owner, name string, number int, username string) error
+	AssignReviewer(owner, name string, number int, username string) (*models.PatchRequest, error)
+	UnassignReviewer(owner, name string, number int, username string) (*models.PatchRequest, error)
 	ListReviewers(owner, name string, number int) ([]models.User, error)
 
-	SubmitReview(owner, name string, number int, authorID, state, body string) error
+	SubmitReview(owner, name string, number int, authorID, state, body string) (*models.PatchRequest, error)
 	ListReviews(owner, name string, number int) ([]models.PatchReview, error)
 
 	CreateComment(owner, name string, number int, authorID, body, filePath string, line *int) (*models.PatchComment, error)
@@ -365,28 +365,34 @@ func (s *PatchServiceImpl) ListFiles(owner, name string, number int) ([]models.P
 	return files, nil
 }
 
-func (s *PatchServiceImpl) AssignReviewer(owner, name string, number int, username string) error {
+func (s *PatchServiceImpl) AssignReviewer(owner, name string, number int, username string) (*models.PatchRequest, error) {
 	patch, err := s.GetPatch(owner, name, number)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	user, err := s.Users.FindByUsername(username)
 	if err != nil {
-		return errors.New("user not found")
+		return nil, errors.New("user not found")
 	}
-	return s.Patches.AddReviewer(patch.ID.String(), user.ID.String())
+	if err := s.Patches.AddReviewer(patch.ID.String(), user.ID.String()); err != nil {
+		return nil, err
+	}
+	return s.GetPatch(owner, name, number)
 }
 
-func (s *PatchServiceImpl) UnassignReviewer(owner, name string, number int, username string) error {
+func (s *PatchServiceImpl) UnassignReviewer(owner, name string, number int, username string) (*models.PatchRequest, error) {
 	patch, err := s.GetPatch(owner, name, number)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	user, err := s.Users.FindByUsername(username)
 	if err != nil {
-		return errors.New("user not found")
+		return nil, errors.New("user not found")
 	}
-	return s.Patches.RemoveReviewer(patch.ID.String(), user.ID.String())
+	if err := s.Patches.RemoveReviewer(patch.ID.String(), user.ID.String()); err != nil {
+		return nil, err
+	}
+	return s.GetPatch(owner, name, number)
 }
 
 func (s *PatchServiceImpl) ListReviewers(owner, name string, number int) ([]models.User, error) {
@@ -435,20 +441,20 @@ func (s *PatchServiceImpl) allReviewersApproved(patchID string) (bool, error) {
 	return true, nil
 }
 
-func (s *PatchServiceImpl) SubmitReview(owner, name string, number int, authorID, state, body string) error {
+func (s *PatchServiceImpl) SubmitReview(owner, name string, number int, authorID, state, body string) (*models.PatchRequest, error) {
 	if !models.ValidPatchReviewState(state) {
-		return errors.New("invalid review state")
+		return nil, errors.New("invalid review state")
 	}
 	patch, err := s.GetPatch(owner, name, number)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	isRev, err := s.Patches.IsReviewer(patch.ID.String(), authorID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !isRev {
-		return errors.New("only assigned reviewers can submit a review")
+		return nil, errors.New("only assigned reviewers can submit a review")
 	}
 	review := &models.PatchReview{
 		PatchID:  patch.ID.String(),
@@ -456,7 +462,10 @@ func (s *PatchServiceImpl) SubmitReview(owner, name string, number int, authorID
 		State:    state,
 		Body:     body,
 	}
-	return s.Patches.UpsertReview(review)
+	if err := s.Patches.UpsertReview(review); err != nil {
+		return nil, err
+	}
+	return s.GetPatch(owner, name, number)
 }
 
 func (s *PatchServiceImpl) ListReviews(owner, name string, number int) ([]models.PatchReview, error) {

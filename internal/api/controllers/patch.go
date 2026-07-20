@@ -61,10 +61,10 @@ func (c *PatchControllerImpl) List(ctx *gin.Context) {
 	owner, repo := c.ownerRepo(ctx)
 	patches, err := c.service.ListPatches(owner, repo)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchResponseSlice(patches))
+	response.WriteOK(ctx, "patches listed", response.ToPatchResponseSlice(patches))
 }
 
 func (c *PatchControllerImpl) Create(ctx *gin.Context) {
@@ -77,10 +77,10 @@ func (c *PatchControllerImpl) Create(ctx *gin.Context) {
 	authorID := ctx.GetString("user_id")
 	patch, err := c.service.CreatePatch(owner, repo, authorID, req.Title, req.Body, req.SourceBranch, req.TargetBranch)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusCreated, response.ToPatchResponse(patch))
+	response.WriteCreated(ctx, "patch created", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) Get(ctx *gin.Context) {
@@ -91,10 +91,10 @@ func (c *PatchControllerImpl) Get(ctx *gin.Context) {
 	}
 	patch, err := c.service.GetPatch(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchResponse(patch))
+	response.WriteOK(ctx, "patch found", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) Update(ctx *gin.Context) {
@@ -120,10 +120,10 @@ func (c *PatchControllerImpl) Update(ctx *gin.Context) {
 	}
 	patch, err := c.service.UpdatePatch(owner, repo, n, title, body, state)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchResponse(patch))
+	response.WriteOK(ctx, "patch updated", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) Refresh(ctx *gin.Context) {
@@ -134,10 +134,10 @@ func (c *PatchControllerImpl) Refresh(ctx *gin.Context) {
 	}
 	patch, err := c.service.RefreshPatch(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchResponse(patch))
+	response.WriteOK(ctx, "patch refreshed", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) Merge(ctx *gin.Context) {
@@ -149,10 +149,10 @@ func (c *PatchControllerImpl) Merge(ctx *gin.Context) {
 	mergerID := ctx.GetString("user_id")
 	patch, err := c.service.MergePatch(owner, repo, n, mergerID)
 	if err != nil {
-		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusConflict, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchResponse(patch))
+	response.WriteOK(ctx, "patch merged", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) ListCommits(ctx *gin.Context) {
@@ -163,10 +163,10 @@ func (c *PatchControllerImpl) ListCommits(ctx *gin.Context) {
 	}
 	commits, err := c.service.ListCommits(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchCommitResponseSlice(commits))
+	response.WriteOK(ctx, "commits listed", response.ToPatchCommitResponseSlice(commits))
 }
 
 func (c *PatchControllerImpl) ListFiles(ctx *gin.Context) {
@@ -177,10 +177,10 @@ func (c *PatchControllerImpl) ListFiles(ctx *gin.Context) {
 	}
 	files, err := c.service.ListFiles(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchFileResponseSlice(files))
+	response.WriteOK(ctx, "files listed", response.ToPatchFileResponseSlice(files))
 }
 
 func (c *PatchControllerImpl) AssignReviewer(ctx *gin.Context) {
@@ -191,14 +191,15 @@ func (c *PatchControllerImpl) AssignReviewer(ctx *gin.Context) {
 	}
 	var req dto.AssignPatchReviewerRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := c.service.AssignReviewer(owner, repo, n, req.Username); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	patch, err := c.service.AssignReviewer(owner, repo, n, req.Username)
+	if err != nil {
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.Status(http.StatusNoContent)
+	response.WriteOK(ctx, "reviewer assigned", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) UnassignReviewer(ctx *gin.Context) {
@@ -208,11 +209,12 @@ func (c *PatchControllerImpl) UnassignReviewer(ctx *gin.Context) {
 		return
 	}
 	username := ctx.Param("username")
-	if err := c.service.UnassignReviewer(owner, repo, n, username); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	patch, err := c.service.UnassignReviewer(owner, repo, n, username)
+	if err != nil {
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.Status(http.StatusNoContent)
+	response.WriteOK(ctx, "reviewer unassigned", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) ListReviewers(ctx *gin.Context) {
@@ -223,10 +225,10 @@ func (c *PatchControllerImpl) ListReviewers(ctx *gin.Context) {
 	}
 	reviewers, err := c.service.ListReviewers(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToUserResponseSlice(reviewers))
+	response.WriteOK(ctx, "reviewers listed", response.ToUserResponseSlice(reviewers))
 }
 
 func (c *PatchControllerImpl) SubmitReview(ctx *gin.Context) {
@@ -237,15 +239,16 @@ func (c *PatchControllerImpl) SubmitReview(ctx *gin.Context) {
 	}
 	var req dto.SubmitPatchReviewRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 	authorID := ctx.GetString("user_id")
-	if err := c.service.SubmitReview(owner, repo, n, authorID, req.State, req.Body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	patch, err := c.service.SubmitReview(owner, repo, n, authorID, req.State, req.Body)
+	if err != nil {
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.Status(http.StatusNoContent)
+	response.WriteOK(ctx, "review submitted", response.ToPatchResponse(patch))
 }
 
 func (c *PatchControllerImpl) ListReviews(ctx *gin.Context) {
@@ -256,10 +259,10 @@ func (c *PatchControllerImpl) ListReviews(ctx *gin.Context) {
 	}
 	reviews, err := c.service.ListReviews(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchReviewResponseSlice(reviews))
+	response.WriteOK(ctx, "reviews listed", response.ToPatchReviewResponseSlice(reviews))
 }
 
 func (c *PatchControllerImpl) CreateComment(ctx *gin.Context) {
@@ -276,10 +279,10 @@ func (c *PatchControllerImpl) CreateComment(ctx *gin.Context) {
 	authorID := ctx.GetString("user_id")
 	comment, err := c.service.CreateComment(owner, repo, n, authorID, req.Body, req.FilePath, req.Line)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusCreated, response.ToPatchCommentResponse(comment))
+	response.WriteCreated(ctx, "comment created", response.ToPatchCommentResponse(comment))
 }
 
 func (c *PatchControllerImpl) ListComments(ctx *gin.Context) {
@@ -290,8 +293,8 @@ func (c *PatchControllerImpl) ListComments(ctx *gin.Context) {
 	}
 	comments, err := c.service.ListComments(owner, repo, n)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		response.WriteError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, response.ToPatchCommentResponseSlice(comments))
+	response.WriteOK(ctx, "comments listed", response.ToPatchCommentResponseSlice(comments))
 }
