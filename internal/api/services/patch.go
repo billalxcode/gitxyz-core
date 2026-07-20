@@ -456,6 +456,10 @@ func (s *PatchServiceImpl) SubmitReview(owner, name string, number int, authorID
 	if err != nil {
 		return nil, err
 	}
+	// Validate the author exists to avoid a foreign key violation.
+	if _, err := s.Users.FindByID(authorID); err != nil {
+		return nil, errors.New("author not found")
+	}
 	isRev, err := s.Patches.IsReviewer(patch.ID.String(), authorID)
 	if err != nil {
 		return nil, err
@@ -491,6 +495,10 @@ func (s *PatchServiceImpl) CreateComment(owner, name string, number int, authorI
 	patch, err := s.GetPatch(owner, name, number)
 	if err != nil {
 		return nil, err
+	}
+	// Validate the author exists to avoid a foreign key violation.
+	if _, err := s.Users.FindByID(authorID); err != nil {
+		return nil, errors.New("author not found")
 	}
 	comment := &models.PatchComment{
 		PatchID:  patch.ID.String(),

@@ -179,6 +179,7 @@ func (r *PatchRepositoryImpl) FindReviewers(patchID string, dest *[]models.User)
 		Select("users.*").
 		Joins("JOIN patch_reviewers ON patch_reviewers.user_id = users.id AND patch_reviewers.deleted_at IS NULL").
 		Where("patch_reviewers.patch_id = ?", patchID).
+		Where("users.deleted_at IS NULL").
 		Find(dest).Error
 }
 
@@ -201,6 +202,13 @@ func (r *PatchRepositoryImpl) UpsertReview(review *models.PatchReview) error {
 	}
 	if err != nil {
 		return err
+	}
+	// A soft-deleted row was found: hard-replace it with the new review.
+	if existing.DeletedAt.Valid {
+		if err := r.db.Unscoped().Delete(&existing).Error; err != nil {
+			return err
+		}
+		return r.db.Create(review).Error
 	}
 	existing.State = review.State
 	existing.Body = review.Body
