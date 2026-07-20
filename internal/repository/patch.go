@@ -34,6 +34,7 @@ type PatchRepository interface {
 	// Reviews
 	UpsertReview(review *models.PatchReview) error
 	FindReviews(patchID string, dest *[]models.PatchReview) error
+	FindReview(patchID, authorID string) (*models.PatchReview, error)
 
 	// Comments
 	CreateComment(comment *models.PatchComment) error
@@ -224,6 +225,20 @@ func (r *PatchRepositoryImpl) FindReviews(patchID string, dest *[]models.PatchRe
 		Where("patch_id = ?", patchID).
 		Order("created_at ASC").
 		Find(dest).Error
+}
+
+func (r *PatchRepositoryImpl) FindReview(patchID, authorID string) (*models.PatchReview, error) {
+	var review models.PatchReview
+	err := r.db.
+		Where("patch_id = ? AND author_id = ?", patchID, authorID).
+		First(&review).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &review, nil
 }
 
 func (r *PatchRepositoryImpl) CreateComment(comment *models.PatchComment) error {

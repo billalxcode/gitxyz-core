@@ -201,11 +201,24 @@ func (s *PatchServiceImpl) UpdatePatch(owner, name string, number int, title, bo
 	if body != "" {
 		patch.Body = body
 	}
-	if state != "" && models.ValidPatchState(state) {
+	if state != "" {
+		if !models.ValidPatchState(state) {
+			return nil, errors.New("invalid patch state")
+		}
+		// State transition rules:
+		// - open  -> open | closed | merged
+		// - merged/closed are terminal: cannot be reopened.
+		if patch.State != models.PatchStateOpen && state != patch.State {
+			return nil, errors.New("patch is not open; state cannot be changed")
+		}
 		patch.State = state
 		if state == models.PatchStateClosed && patch.ClosedAt == nil {
 			now := time.Now()
 			patch.ClosedAt = &now
+		}
+		if state == models.PatchStateMerged && patch.MergedAt == nil {
+			now := time.Now()
+			patch.MergedAt = &now
 		}
 	}
 	if err := s.Patches.Update(&patch); err != nil {
@@ -381,6 +394,14 @@ func (s *PatchServiceImpl) AssignReviewer(owner, name string, number int, userna
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
+	// Prevent duplicate assignment.
+	isRev, err := s.Patches.IsReviewer(patch.ID.String(), user.ID.String())
+	if err != nil {
+		return nil, err
+	}
+	if isRev {
+		return nil, errors.New("reviewer already assigned")
+	}
 	if err := s.Patches.AddReviewer(patch.ID.String(), user.ID.String()); err != nil {
 		return nil, err
 	}
@@ -466,6 +487,17 @@ func (s *PatchServiceImpl) SubmitReview(owner, name string, number int, authorID
 	}
 	if !isRev {
 		return nil, errors.New("only assigned reviewers can submit a review")
+	}
+	// Review transition rules:
+	// - Once a reviewer has APPROVED, they cannot later request changes.
+	// - changes_requested (request change) may be submitted repeatedly.
+	// - commented is neutral and may be overwritten anytime.
+	existing, err := s.Patches.FindReview(patch.ID.String(), authorID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil && existing.State == models.PatchReviewApproved && state == models.PatchReviewChangesRequested {
+		return nil, errors.New("cannot request changes after approving")
 	}
 	review := &models.PatchReview{
 		PatchID:  patch.ID.String(),
