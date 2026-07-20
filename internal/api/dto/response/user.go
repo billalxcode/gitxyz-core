@@ -84,3 +84,11 @@ func ToUserResponse(user *models.User) UserResponse {
 		LastLoginAt: user.LastLoginAt,
 	}
 }
+
+func ToUserResponseSlice(list []models.User) []UserResponse {
+	out := make([]UserResponse, 0, len(list))
+	for i := range list {
+		out = append(out, ToUserResponse(&list[i]))
+	}
+	return out
+}
