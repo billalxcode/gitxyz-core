@@ -78,4 +78,33 @@ func (r *RoutesImpl) RegisterRepositories() {
 	assignees.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), issueController.ListAssignees)
 	assignees.POST("", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.AddAssignee)
 	assignees.DELETE("/:username", middlewares.RequireScope(r.db, models.ScopeRepoWrite), issueController.RemoveAssignee)
+
+	// Patch Requests — nested under the repository group.
+	patchController := controllers.NewPatchController(r.db)
+
+	// Patch collection + single patch.
+	patches := repo.Group("/patches")
+	patches.GET("", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.List)
+	patches.POST("", middlewares.CollaboratorOrOwner(r.db), patchController.Create)
+	patches.GET("/:number", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.Get)
+	patches.PATCH("/:number", middlewares.CollaboratorOrOwner(r.db), patchController.Update)
+	patches.POST("/:number/refresh", middlewares.CollaboratorOrOwner(r.db), patchController.Refresh)
+	patches.POST("/:number/merge", middlewares.MaintainerOrOwner(r.db), patchController.Merge)
+
+	// Patch snapshot views.
+	patches.GET("/:number/commits", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.ListCommits)
+	patches.GET("/:number/files", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.ListFiles)
+
+	// Patch reviewers.
+	patches.POST("/:number/reviewers", middlewares.CollaboratorOrOwner(r.db), patchController.AssignReviewer)
+	patches.DELETE("/:number/reviewers/:username", middlewares.CollaboratorOrOwner(r.db), patchController.UnassignReviewer)
+	patches.GET("/:number/reviewers", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.ListReviewers)
+
+	// Patch reviews.
+	patches.GET("/:number/reviews", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.ListReviews)
+	patches.POST("/:number/reviews", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.SubmitReview)
+
+	// Patch comments (public to authenticated readers).
+	patches.GET("/:number/comments", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.ListComments)
+	patches.POST("/:number/comments", middlewares.RequireScope(r.db, models.ScopeRepoRead), patchController.CreateComment)
 }
