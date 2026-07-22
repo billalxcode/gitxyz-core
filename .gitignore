@@ -2,4 +2,10 @@ volumes
 tmp
 .idea
 ./gitxyz
-.envs
+.env
+
+.agents
+.claude
+
+docs/superpowers
+gitxyz

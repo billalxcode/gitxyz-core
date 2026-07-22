@@ -8,8 +8,8 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	UsernameOrEmail string `json:"username_or_email" binding:"required"`
-	Password        string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
 type UpdateProfileRequest struct {
@@ -26,4 +26,27 @@ type UpdateBioRequest struct {
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6,max=24"`
+}
+
+type AddSSHKeyRequest struct {
+	Title     string `json:"title" binding:"required"`
+	PublicKey string `json:"public_key" binding:"required"`
+}
+
+type CreateTokenRequest struct {
+	Name   string `json:"name" binding:"required"`
+	Scopes string `json:"scopes"`
+}
+
+type CollaboratorRequest struct {
+	Username string `json:"username" binding:"required"`
+	Role     string `json:"role" binding:"required"`
+}
+
+type PolicyRequest struct {
+	SubjectType string `json:"subject_type" binding:"required"`
+	SubjectID   string `json:"subject_id" binding:"required"`
+	Action      string `json:"action" binding:"required"`
+	ResourceID  string `json:"resource_id"`
+	Effect      string `json:"effect" binding:"required"`
 }

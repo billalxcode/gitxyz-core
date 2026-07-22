@@ -1,22 +1,10 @@
 package bootstrap
 
 import (
-	"gitxyz/internal/models"
-
-	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
-
-func runAutoMigrate(database *gorm.DB) {
-	currentMode := gin.Mode()
-
-	if currentMode != gin.ReleaseMode {
-		database.AutoMigrate(&models.User{})
-		database.AutoMigrate(&models.Repository{})
-	}
-}
 
 func NewDatabase() *gorm.DB {
 	DSN := viper.GetString("database_url")
@@ -28,7 +16,9 @@ func NewDatabase() *gorm.DB {
 		panic(err)
 	}
 
-	runAutoMigrate(database)
+	if err := runMigrations(DSN); err != nil {
+		panic(err)
+	}
 
 	return database
 }

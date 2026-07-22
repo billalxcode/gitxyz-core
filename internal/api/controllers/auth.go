@@ -8,8 +8,10 @@ import (
 	"gitxyz/internal/api/services"
 	"gitxyz/internal/models"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -18,6 +20,9 @@ type (
 		Register(ctx *gin.Context)
 		Login(ctx *gin.Context)
 		Profile(ctx *gin.Context)
+		GetUserByUsername(ctx *gin.Context)
+		UpdateProfile(ctx *gin.Context)
+		ChangePassword(ctx *gin.Context)
 		RefreshToken(ctx *gin.Context)
 		Logout(ctx *gin.Context)
 		SendVerificationEmail(ctx *gin.Context)
@@ -76,27 +81,71 @@ func (c *AuthControllerImpl) Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := c.service.Login(request.UsernameOrEmail, request.Password)
+	user, err := c.service.Login(request.Username, request.Password)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	token, err := auth.GenerateToken(&user)
+	accessToken, err := auth.GenerateToken(&user, "access")
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not generate token"})
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not generate access token"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Login successful", "data": response.ToUserResponse(&user), "token": token})
+	refreshToken, err := auth.GenerateToken(&user, "refresh")
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not generate refresh token"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":       "Login successful",
+		"data":          response.ToUserResponse(&user),
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	})
 }
 
 func (c *AuthControllerImpl) RefreshToken(ctx *gin.Context) {
+	var request struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := ctx.ShouldBindBodyWithJSON(&request); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
+	claims, err := auth.ParseToken(request.RefreshToken)
+	if err != nil || claims.TokenType != "refresh" {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	user := models.User{Base: models.Base{ID: userID}, Username: claims.Username, Email: claims.Email}
+	accessToken, err := auth.GenerateToken(&user, "access")
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not generate access token"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
 
 func (c *AuthControllerImpl) Logout(ctx *gin.Context) {
+	authorizationHeader := ctx.GetHeader("Authorization")
+	parts := strings.Split(authorizationHeader, " ")
+	if len(parts) == 2 {
+		auth.RevokeToken(parts[1])
+	}
 
+	ctx.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
 func (c *AuthControllerImpl) SendVerificationEmail(ctx *gin.Context) {

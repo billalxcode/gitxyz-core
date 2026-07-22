@@ -5,9 +5,20 @@ import (
 	"strings"
 
 	"gitxyz/internal/api/auth"
+	"gitxyz/internal/repository"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
+
+// InjectDB stores the database handle in the request context so other
+// middlewares (e.g. AuthRequired) can resolve users without re-capturing db.
+func InjectDB(db *gorm.DB) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctx.Set("db", db)
+		ctx.Next()
+	}
+}
 
 func AuthRequired() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -29,9 +40,29 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		ctx.Set("user_id", claims.UserID)
+		userID := claims.UserID
+		// Backwards-compat: tokens issued before the user_id claim existed
+		// carry an empty UserID but a valid Username. Resolve the ID from the
+		// database so downstream code (e.g. issue author) works correctly.
+		if userID == "" && claims.Username != "" {
+			if db, ok := ctx.MustGet("db").(*gorm.DB); ok {
+				if user, err := repository.NewUserRepository(db).FindByUsername(claims.Username); err == nil {
+					userID = user.ID.String()
+				}
+			}
+		}
+
+		// Without a resolvable user ID we cannot attribute any mutation
+		// (FK constraints on author_id would fail). Reject the request.
+		if userID == "" {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unable to resolve user from token"})
+			return
+		}
+
+		ctx.Set("user_id", userID)
 		ctx.Set("username", claims.Username)
 		ctx.Set("email", claims.Email)
+		ctx.Set("role", claims.Role)
 		ctx.Next()
 	}
 }
