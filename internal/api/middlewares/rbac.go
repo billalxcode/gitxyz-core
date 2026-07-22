@@ -109,3 +109,84 @@ func CheckPolicy(db *gorm.DB, action, resourceType, resourceID string) gin.Handl
 		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "policy denied"})
 	}
 }
+
+// resolveRepoID returns the repository UUID for the :owner/:reponame path.
+func resolveRepoID(ctx *gin.Context, db *gorm.DB) (string, bool) {
+	owner := ctx.Param("owner")
+	reponame := ctx.Param("reponame")
+	if owner == "" || reponame == "" {
+		return "", false
+	}
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.FindByUsername(owner)
+	if err != nil {
+		return "", false
+	}
+	repoRepo := repository.NewRepoRepository(db)
+	repo, err := repoRepo.FindByUserAndName(user.ID.String(), reponame)
+	if err != nil {
+		return "", false
+	}
+	return repo.ID.String(), true
+}
+
+// memberRole returns the repository_members role for the current user, or "".
+func memberRole(ctx *gin.Context, db *gorm.DB, repoID string) string {
+	userID := ctx.GetString("user_id")
+	if userID == "" {
+		return ""
+	}
+	var role string
+	err := db.Model(&models.RepositoryMember{}).
+		Where("user_id = ? AND repo_id = ?", userID, repoID).
+		Select("role").
+		Scan(&role).Error
+	if err != nil {
+		return ""
+	}
+	return role
+}
+
+// MaintainerOrOwner aborts with 403 unless the authenticated user is the repo
+// owner (creator) or a repository member with role owner/maintainer.
+func MaintainerOrOwner(db *gorm.DB) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		repoID, ok := resolveRepoID(ctx, db)
+		if !ok {
+			ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "repository not found"})
+			return
+		}
+		// Repo creator is always allowed.
+		if isRepoOwner(ctx, db) {
+			ctx.Next()
+			return
+		}
+		role := memberRole(ctx, db, repoID)
+		if role == "owner" || role == "maintainer" {
+			ctx.Next()
+			return
+		}
+		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "maintainer or owner required"})
+	}
+}
+
+// CollaboratorOrOwner aborts with 403 unless the authenticated user is the repo
+// owner (creator) or any repository member (owner/maintainer/triager/reader/guest).
+func CollaboratorOrOwner(db *gorm.DB) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		repoID, ok := resolveRepoID(ctx, db)
+		if !ok {
+			ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "repository not found"})
+			return
+		}
+		if isRepoOwner(ctx, db) {
+			ctx.Next()
+			return
+		}
+		if memberRole(ctx, db, repoID) != "" {
+			ctx.Next()
+			return
+		}
+		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "collaborator or owner required"})
+	}
+}

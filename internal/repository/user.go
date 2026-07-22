@@ -6,6 +6,7 @@ import (
 	"gitxyz/internal/models"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -42,6 +43,9 @@ func checkUser(result *gorm.DB) (models.User, error) {
 	// ambil model dari result
 	if result.Statement != nil {
 		if user, ok := result.Statement.Dest.(*models.User); ok {
+			if user.ID == uuid.Nil {
+				return models.User{}, gorm.ErrRecordNotFound
+			}
 			return *user, nil
 		}
 		if userSlice, ok := result.Statement.Dest.(*[]models.User); ok && len(*userSlice) > 0 {
